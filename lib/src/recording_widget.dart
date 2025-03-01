@@ -216,11 +216,9 @@ class _RecordingWidgetState extends State<RecordingWidget> {
   @override
   Widget build(BuildContext context) {
     _context = context;
-    return Scaffold(
-      body: RepaintBoundary(
-        key: recordKey,
-        child: widget.child,
-      ),
+    return RepaintBoundary(
+      key: recordKey,
+      child: widget.child,
     );
   }
 }
