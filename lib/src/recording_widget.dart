@@ -120,8 +120,8 @@ class _RecordingWidgetState extends State<RecordingWidget> {
       await getImageSize();
 
       await FlutterQuickVideoEncoder.setup(
-        width: (width ~/ 2) * 2,
-        height: (height ~/ 2) * 2,
+        width: width,
+        height: height,
         fps: fps,
         videoBitrate: 1000000,
         profileLevel: ProfileLevel.any,
