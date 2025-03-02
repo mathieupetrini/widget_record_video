@@ -150,6 +150,8 @@ class _RecordingWidgetState extends State<RecordingWidget> {
       stream.listen((event) {
         audioFrame = event;
       });
+      const int bytesPerSample = 2;
+      const double htz = 220.0; // sine wave htz
 
       while (isRecording) {
         Uint8List? videoFrame;
@@ -157,7 +159,28 @@ class _RecordingWidgetState extends State<RecordingWidget> {
         if (!isPauseRecord) {
           videoFrame = await captureWidgetAsRGBA();
           if (audioFrame != null) {
-            audioFinal = audioFrame!.sublist(audioFrame!.length - (widget.sampleRate * widget.audioChannels * 2) ~/ FlutterQuickVideoEncoder.fps);
+            int sampleCount = widget.sampleRate ~/ fps;
+
+            // Create a ByteData buffer for the audio data
+            ByteData byteData = ByteData(sampleCount * bytesPerSample * widget.audioChannels);
+
+            // Fill in the buffer
+            for (int i = 0; i < sampleCount; i++) {
+              double t = i / widget.sampleRate;
+              double sampleValue = audioFrame!.indexOf(audioFrame!.length - i).toDouble();
+
+              // Convert the sample value to 16-bit PCM format
+              int sampleInt = (sampleValue * 32767).toInt();
+
+              // Store the sample in the buffer as little-endian
+              for (int n = 0; n < audioChannels; n++) {
+                int bufferIndex = (i * audioChannels + n) * bytesPerSample;
+                byteData.setInt16(bufferIndex, sampleInt, Endian.little);
+              }
+            }
+
+            audioFinal = byteData.buffer.asUint8List();
+            // audioFinal = audioFrame!.sublist(audioFrame!.length - (widget.sampleRate * widget.audioChannels * 2) ~/ FlutterQuickVideoEncoder.fps);
           }
 
           await readyForMore.future;
