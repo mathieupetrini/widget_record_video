@@ -21,6 +21,7 @@ class RecordingWidget extends StatefulWidget {
     this.outputPath,
     this.pixelRatio = 1,
     this.sampleRate = 48000,
+    this.audioChannels = 1,
   });
 
   /// This is the widget you want to record the screen
@@ -38,6 +39,7 @@ class RecordingWidget extends StatefulWidget {
   final double pixelRatio;
 
   final int sampleRate;
+  final int audioChannels;
 
   /// [onComplete] is the next action after creating a video, it returns the video path
   final Function(String) onComplete;
@@ -131,7 +133,7 @@ class _RecordingWidgetState extends State<RecordingWidget> {
         videoBitrate: 1000000,
         profileLevel: ProfileLevel.any,
         audioBitrate: 64000,
-        audioChannels: 1,
+        audioChannels: widget.audioChannels,
         sampleRate: widget.sampleRate,
         filepath: '${appDir.path}/exportVideoOnly.mp4',
       );
@@ -139,10 +141,10 @@ class _RecordingWidgetState extends State<RecordingWidget> {
       Completer<void> readyForMore = Completer<void>();
       readyForMore.complete();
       Uint8List? audioFrame;
-      List<int> audioFinal = [];
+      Uint8List? audioFinal;
 
       final record = AudioRecorder();
-      final stream = await record.startStream(RecordConfig(encoder: AudioEncoder.pcm16bits, sampleRate: widget.sampleRate));
+      final stream = await record.startStream(RecordConfig(encoder: AudioEncoder.pcm16bits, sampleRate: widget.sampleRate, numChannels: widget.audioChannels));
       stream.listen((event) {
         audioFrame = event;
       });
@@ -153,14 +155,14 @@ class _RecordingWidgetState extends State<RecordingWidget> {
         if (!isPauseRecord) {
           videoFrame = await captureWidgetAsRGBA();
           if (audioFrame != null) {
-            audioFinal.add(audioFrame!.last);
+            audioFinal = audioFrame!.sublist(audioFrame!.length - ((widget.sampleRate * widget.audioChannels * 2) / FlutterQuickVideoEncoder.fps).toInt());
           }
 
           await readyForMore.future;
           readyForMore = Completer<void>();
 
           try {
-            _appendFrames(videoFrame, audioFrame)
+            _appendFrames(videoFrame, audioFinal)
                 .then((value) => readyForMore.complete())
                 .catchError((e) => readyForMore.completeError(e));
           } catch (e) {
