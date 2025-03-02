@@ -121,78 +121,6 @@ class _RecordingWidgetState extends State<RecordingWidget> {
     isPauseRecord = false;
   }
 
-  List<int> convertBytesToInt16(Uint8List data) {
-    var bytesPerSample = 2;
-    var isLittleEndian = true;
-    List<int> values = [];
-
-    for (int i = 0; i < data.lengthInBytes; i += bytesPerSample) {
-      int sample = 0;
-      for (int j = 0; j < bytesPerSample; j++) {
-        int byte =
-        isLittleEndian ? data[i + j] : data[i + bytesPerSample - j - 1];
-        sample |= byte << (j * 8);
-      }
-      // Process the PCM sample (interpret as signed 16-bit integer)
-      values.add(sample.toSigned(16));
-    }
-
-    return values;
-  }
-
-  Uint8List convertPcmToWav(List<int> pcmData,
-      {int sampleRate = 44100, int numChannels = 1, int bitsPerSample = 16}) {
-    // Validate that pcmData values are in 16-bit range
-    for (int sample in pcmData) {
-      if (sample < -32768 || sample > 32767) {
-        throw ArgumentError("PCM data value out of range for 16-bit audio");
-      }
-    }
-
-    // Create a ByteData to write the WAV file
-    var wavHeaderSize = 44; // Standard WAV header size
-    var totalSize = wavHeaderSize + pcmData.length * 2;
-    var byteData = ByteData(totalSize);
-
-    // Write the RIFF header
-    byteData.setUint8(0, 'R'.codeUnitAt(0));
-    byteData.setUint8(1, 'I'.codeUnitAt(0));
-    byteData.setUint8(2, 'F'.codeUnitAt(0));
-    byteData.setUint8(3, 'F'.codeUnitAt(0));
-    byteData.setUint32(4, totalSize - 8, Endian.little);
-    byteData.setUint8(8, 'W'.codeUnitAt(0));
-    byteData.setUint8(9, 'A'.codeUnitAt(0));
-    byteData.setUint8(10, 'V'.codeUnitAt(0));
-    byteData.setUint8(11, 'E'.codeUnitAt(0));
-
-    // Write the fmt subchunk
-    byteData.setUint8(12, 'f'.codeUnitAt(0));
-    byteData.setUint8(13, 'm'.codeUnitAt(0));
-    byteData.setUint8(14, 't'.codeUnitAt(0));
-    byteData.setUint8(15, ' '.codeUnitAt(0));
-    byteData.setUint32(16, 16, Endian.little); // Subchunk size
-    byteData.setUint16(20, 1, Endian.little); // Audio format (1 = PCM)
-    byteData.setUint16(22, numChannels, Endian.little);
-    byteData.setUint32(24, sampleRate, Endian.little);
-    byteData.setUint32(28, sampleRate * numChannels * (bitsPerSample ~/ 8),
-        Endian.little); // Byte rate
-    byteData.setUint16(
-        32, numChannels * (bitsPerSample ~/ 8), Endian.little); // Block align
-    byteData.setUint16(34, bitsPerSample, Endian.little);
-
-    // Write the data subchunk
-    byteData.setUint8(36, 'd'.codeUnitAt(0));
-    byteData.setUint8(37, 'a'.codeUnitAt(0));
-    byteData.setUint8(38, 't'.codeUnitAt(0));
-    byteData.setUint8(39, 'a'.codeUnitAt(0));
-    byteData.setUint32(40, pcmData.length * 2, Endian.little);
-    for (int i = 0; i < pcmData.length; i++) {
-      byteData.setInt16(wavHeaderSize + i * 2, pcmData[i], Endian.little);
-    }
-
-    return byteData.buffer.asUint8List();
-  }
-
   Future<void> startExportVideo() async {
     Directory? appDir = await getApplicationCacheDirectory();
 
@@ -214,38 +142,24 @@ class _RecordingWidgetState extends State<RecordingWidget> {
 
       Completer<void> readyForMore = Completer<void>();
       readyForMore.complete();
-      Uint8List? audioFrame;
-      Uint8List? audioFinal;
 
       final record = AudioRecorder();
       final stream = await record.startStream(RecordConfig(bitRate: widget.audioBitrate, encoder: AudioEncoder.pcm16bits, sampleRate: widget.sampleRate, numChannels: widget.audioChannels));
-      stream.listen((event) {
-        audioFrame = event;
+      stream.listen((event) async {
+        await FlutterQuickVideoEncoder.appendAudioFrame(event);
       });
-
-      const int bytesPerSample = 2;
 
       while (isRecording) {
         Uint8List? videoFrame;
 
         if (!isPauseRecord) {
           videoFrame = await captureWidgetAsRGBA();
-          if (audioFrame != null) {
-            int sampleCount = widget.sampleRate ~/ fps;
-
-            audioFinal = convertPcmToWav(
-                convertBytesToInt16(audioFrame!),
-                sampleRate: widget.sampleRate,
-                numChannels: widget.audioChannels,
-            ).sublist(audioFrame!.length - sampleCount * bytesPerSample * widget.audioChannels);
-            // audioFinal = audioFrame!.sublist(audioFrame!.length - (widget.sampleRate * widget.audioChannels * 2) ~/ FlutterQuickVideoEncoder.fps);
-          }
 
           await readyForMore.future;
           readyForMore = Completer<void>();
 
           try {
-            _appendFrames(videoFrame, audioFinal)
+            _appendFrames(videoFrame, null)
                 .then((value) => readyForMore.complete())
                 .catchError((e) => readyForMore.completeError(e));
           } catch (e) {
@@ -293,9 +207,8 @@ class _RecordingWidgetState extends State<RecordingWidget> {
 
   Future<void> _appendFrames(
       Uint8List? videoFrame, Uint8List? audioFrame) async {
-    if (videoFrame != null && audioFrame != null) {
+    if (videoFrame != null) {
       await FlutterQuickVideoEncoder.appendVideoFrame(videoFrame);
-      await FlutterQuickVideoEncoder.appendAudioFrame(audioFrame);
     } else {
       debugPrint("Error append add frame");
     }
