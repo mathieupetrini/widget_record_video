@@ -151,7 +151,6 @@ class _RecordingWidgetState extends State<RecordingWidget> {
         audioFrame = event;
       });
       const int bytesPerSample = 2;
-      const double htz = 220.0; // sine wave htz
 
       while (isRecording) {
         Uint8List? videoFrame;
@@ -173,8 +172,8 @@ class _RecordingWidgetState extends State<RecordingWidget> {
               int sampleInt = (sampleValue * 32767).toInt();
 
               // Store the sample in the buffer as little-endian
-              for (int n = 0; n < audioChannels; n++) {
-                int bufferIndex = (i * audioChannels + n) * bytesPerSample;
+              for (int n = 0; n < widget.audioChannels; n++) {
+                int bufferIndex = (i * widget.audioChannels + n) * bytesPerSample;
                 byteData.setInt16(bufferIndex, sampleInt, Endian.little);
               }
             }
