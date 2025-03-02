@@ -22,6 +22,7 @@ class RecordingWidget extends StatefulWidget {
     this.pixelRatio = 1,
     this.sampleRate = 48000,
     this.audioChannels = 1,
+    this.audioBitrate = 64000,
   });
 
   /// This is the widget you want to record the screen
@@ -40,6 +41,7 @@ class RecordingWidget extends StatefulWidget {
 
   final int sampleRate;
   final int audioChannels;
+  final int audioBitrate;
 
   /// [onComplete] is the next action after creating a video, it returns the video path
   final Function(String) onComplete;
@@ -132,7 +134,7 @@ class _RecordingWidgetState extends State<RecordingWidget> {
         fps: fps,
         videoBitrate: 1000000,
         profileLevel: ProfileLevel.any,
-        audioBitrate: 64000,
+        audioBitrate: widget.audioBitrate,
         audioChannels: widget.audioChannels,
         sampleRate: widget.sampleRate,
         filepath: '${appDir.path}/exportVideoOnly.mp4',
@@ -144,7 +146,7 @@ class _RecordingWidgetState extends State<RecordingWidget> {
       Uint8List? audioFinal;
 
       final record = AudioRecorder();
-      final stream = await record.startStream(RecordConfig(encoder: AudioEncoder.pcm16bits, sampleRate: widget.sampleRate, numChannels: widget.audioChannels));
+      final stream = await record.startStream(RecordConfig(bitRate: widget.audioBitrate, encoder: AudioEncoder.pcm16bits, sampleRate: widget.sampleRate, numChannels: widget.audioChannels));
       stream.listen((event) {
         audioFrame = event;
       });
@@ -155,7 +157,7 @@ class _RecordingWidgetState extends State<RecordingWidget> {
         if (!isPauseRecord) {
           videoFrame = await captureWidgetAsRGBA();
           if (audioFrame != null) {
-            audioFinal = audioFrame!.sublist(audioFrame!.length - ((widget.sampleRate * widget.audioChannels * 2) / FlutterQuickVideoEncoder.fps).toInt());
+            audioFinal = audioFrame!.sublist(audioFrame!.length - (widget.sampleRate * widget.audioChannels * 2) ~/ FlutterQuickVideoEncoder.fps);
           }
 
           await readyForMore.future;
