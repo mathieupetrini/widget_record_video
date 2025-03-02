@@ -158,12 +158,7 @@ class _RecordingWidgetState extends State<RecordingWidget> {
       int videoTime = ((endTime - startTime) / 1000).round() - 1;
       debugPrint("video time: $videoTime");
 
-      var resultPath = await Ultis.adjustVideoSpeed(
-        FlutterQuickVideoEncoder.filepath,
-        videoTime,
-        widget.outputPath,
-      );
-      widget.onComplete(resultPath);
+      widget.onComplete(FlutterQuickVideoEncoder.filepath);
 
       FlutterQuickVideoEncoder.dispose();
     } catch (e) {
