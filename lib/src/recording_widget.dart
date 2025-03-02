@@ -158,7 +158,12 @@ class _RecordingWidgetState extends State<RecordingWidget> {
       int videoTime = ((endTime - startTime) / 1000).round() - 1;
       debugPrint("video time: $videoTime");
 
-      widget.onComplete(FlutterQuickVideoEncoder.filepath);
+      var resultPath = await Ultis.adjustVideoSpeed(
+        FlutterQuickVideoEncoder.filepath,
+        videoTime,
+        widget.outputPath,
+      );
+      widget.onComplete(resultPath);
 
       FlutterQuickVideoEncoder.dispose();
     } catch (e) {
@@ -211,9 +216,11 @@ class _RecordingWidgetState extends State<RecordingWidget> {
   @override
   Widget build(BuildContext context) {
     _context = context;
-    return RepaintBoundary(
-      key: recordKey,
-      child: widget.child,
+    return Scaffold(
+      body: RepaintBoundary(
+        key: recordKey,
+        child: widget.child,
+      ),
     );
   }
 }
