@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -6,9 +7,9 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter_quick_video_encoder_fork/flutter_quick_video_encoder.dart';
+import 'package:flutter_quick_video_encoder/flutter_quick_video_encoder.dart';
+import 'package:mic_stream/mic_stream.dart';
 import 'package:widget_record_video/src/recording_controller.dart';
-import 'package:widget_record_video/src/utils.dart';
 
 class RecordingWidget extends StatefulWidget {
   const RecordingWidget({
@@ -47,6 +48,8 @@ class RecordingWidget extends StatefulWidget {
 
 class _RecordingWidgetState extends State<RecordingWidget> {
   static const int fps = 30;
+  static const int sampleRate = 44100;
+  static const int audioChannels = 1;
 
   @override
   void initState() {
@@ -61,7 +64,7 @@ class _RecordingWidgetState extends State<RecordingWidget> {
 
   Future<void> getImageSize() async {
     RenderRepaintBoundary boundary =
-        recordKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+    recordKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
     ui.Image image = await boundary.toImage(pixelRatio: widget.pixelRatio);
     width = image.width;
     height = image.height;
@@ -125,18 +128,28 @@ class _RecordingWidgetState extends State<RecordingWidget> {
         fps: fps,
         videoBitrate: 1000000,
         profileLevel: ProfileLevel.any,
-        audioBitrate: 0,
-        audioChannels: 0,
-        sampleRate: 0,
+        audioBitrate: 64000,
+        audioChannels: 1,
+        sampleRate: sampleRate,
         filepath: '${appDir.path}/exportVideoOnly.mp4',
+      );
+      var stream = MicStream.microphone(
+          audioSource: AudioSource.DEFAULT,
+          sampleRate: sampleRate,
+          channelConfig: ChannelConfig.CHANNEL_IN_MONO,
+          audioFormat: AudioFormat.ENCODING_PCM_16BIT
       );
 
       Completer<void> readyForMore = Completer<void>();
       readyForMore.complete();
+      Uint8List? audioFrame;
+
+      var listener = stream.listen((_sample) async {
+        audioFrame = _sample.buffer.asUint8List();
+      });
 
       while (isRecording) {
         Uint8List? videoFrame;
-        Uint8List? audioFrame;
 
         if (!isPauseRecord) {
           videoFrame = await captureWidgetAsRGBA();
@@ -158,6 +171,7 @@ class _RecordingWidgetState extends State<RecordingWidget> {
 
       await readyForMore.future;
 
+      listener.cancel();
       await FlutterQuickVideoEncoder.finish();
       int endTime = DateTime.now().millisecondsSinceEpoch;
       int videoTime = ((endTime - startTime) / 1000).round() - 1;
@@ -165,7 +179,7 @@ class _RecordingWidgetState extends State<RecordingWidget> {
 
       widget.onComplete(FlutterQuickVideoEncoder.filepath);
 
-      FlutterQuickVideoEncoder.dispose();
+      FlutterQuickVideoEncoder.finish();
     } catch (e) {
       ('Error: $e');
     }
@@ -174,13 +188,13 @@ class _RecordingWidgetState extends State<RecordingWidget> {
   Future<Uint8List?> captureWidgetAsRGBA() async {
     try {
       RenderRepaintBoundary boundary =
-          recordKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      recordKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
       ui.Image image = await boundary.toImage(pixelRatio: widget.pixelRatio);
       width = image.width;
       height = image.height;
 
       ByteData? byteData =
-          await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+      await image.toByteData(format: ui.ImageByteFormat.rawRgba);
       return byteData?.buffer.asUint8List();
     } catch (e) {
       debugPrint(
@@ -192,10 +206,11 @@ class _RecordingWidgetState extends State<RecordingWidget> {
 
   Future<void> _appendFrames(
       Uint8List? videoFrame, Uint8List? audioFrame) async {
-    if (videoFrame != null) {
+    if (videoFrame != null && audioFrame != null) {
       await FlutterQuickVideoEncoder.appendVideoFrame(videoFrame);
+      await FlutterQuickVideoEncoder.appendAudioFrame(audioFrame);
     } else {
-      debugPrint("Error append $videoFrame");
+      debugPrint("Error append $videoFrame or $audioFrame");
     }
   }
 
