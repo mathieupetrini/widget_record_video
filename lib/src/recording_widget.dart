@@ -18,6 +18,7 @@ class RecordingWidget extends StatefulWidget {
     this.limitTime = 120,
     required this.onComplete,
     this.outputPath,
+    this.pixelRatio = 1,
   });
 
   /// This is the widget you want to record the screen
@@ -29,6 +30,10 @@ class RecordingWidget extends StatefulWidget {
   /// [limitTime] is the video recording time limit, when the limit is reached, the process automatically stops.
   /// Its default value is 120 seconds. If you do not have a limit, please set the value -1
   final int limitTime;
+
+  /// [pixelRatio] The pixel ratio compared to the original widget. You should keep it at 1
+  /// and only change it from 0.5 to 2 to ensure the best performance
+  final double pixelRatio;
 
   /// [onComplete] is the next action after creating a video, it returns the video path
   final Function(String) onComplete;
@@ -57,7 +62,7 @@ class _RecordingWidgetState extends State<RecordingWidget> {
   Future<void> getImageSize() async {
     RenderRepaintBoundary boundary =
         recordKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
-    ui.Image image = await boundary.toImage(pixelRatio: 1);
+    ui.Image image = await boundary.toImage(pixelRatio: widget.pixelRatio);
     width = image.width;
     height = image.height;
   }
@@ -158,12 +163,7 @@ class _RecordingWidgetState extends State<RecordingWidget> {
       int videoTime = ((endTime - startTime) / 1000).round() - 1;
       debugPrint("video time: $videoTime");
 
-      var resultPath = await Ultis.adjustVideoSpeed(
-        FlutterQuickVideoEncoder.filepath,
-        videoTime,
-        widget.outputPath,
-      );
-      widget.onComplete(resultPath);
+      widget.onComplete(FlutterQuickVideoEncoder.filepath);
 
       FlutterQuickVideoEncoder.dispose();
     } catch (e) {
@@ -175,7 +175,7 @@ class _RecordingWidgetState extends State<RecordingWidget> {
     try {
       RenderRepaintBoundary boundary =
           recordKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
-      ui.Image image = await boundary.toImage(pixelRatio: 1);
+      ui.Image image = await boundary.toImage(pixelRatio: widget.pixelRatio);
       width = image.width;
       height = image.height;
 
@@ -216,11 +216,9 @@ class _RecordingWidgetState extends State<RecordingWidget> {
   @override
   Widget build(BuildContext context) {
     _context = context;
-    return Scaffold(
-      body: RepaintBoundary(
-        key: recordKey,
-        child: widget.child,
-      ),
+    return RepaintBoundary(
+      key: recordKey,
+      child: widget.child,
     );
   }
 }
