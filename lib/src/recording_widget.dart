@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_quick_video_encoder/flutter_quick_video_encoder.dart';
-import 'package:mic_stream/mic_stream.dart';
+import 'package:record/record.dart';
 import 'package:widget_record_video/src/recording_controller.dart';
 
 class RecordingWidget extends StatefulWidget {
@@ -20,6 +20,7 @@ class RecordingWidget extends StatefulWidget {
     required this.onComplete,
     this.outputPath,
     this.pixelRatio = 1,
+    this.sampleRate = 48000,
   });
 
   /// This is the widget you want to record the screen
@@ -36,6 +37,8 @@ class RecordingWidget extends StatefulWidget {
   /// and only change it from 0.5 to 2 to ensure the best performance
   final double pixelRatio;
 
+  final int sampleRate;
+
   /// [onComplete] is the next action after creating a video, it returns the video path
   final Function(String) onComplete;
 
@@ -48,7 +51,6 @@ class RecordingWidget extends StatefulWidget {
 
 class _RecordingWidgetState extends State<RecordingWidget> {
   static const int fps = 30;
-  static const int sampleRate = 44100;
   static const int audioChannels = 1;
 
   @override
@@ -130,22 +132,18 @@ class _RecordingWidgetState extends State<RecordingWidget> {
         profileLevel: ProfileLevel.any,
         audioBitrate: 64000,
         audioChannels: 1,
-        sampleRate: sampleRate,
+        sampleRate: widget.sampleRate,
         filepath: '${appDir.path}/exportVideoOnly.mp4',
-      );
-      var stream = MicStream.microphone(
-          audioSource: AudioSource.DEFAULT,
-          sampleRate: sampleRate,
-          channelConfig: ChannelConfig.CHANNEL_IN_MONO,
-          audioFormat: AudioFormat.ENCODING_PCM_16BIT
       );
 
       Completer<void> readyForMore = Completer<void>();
       readyForMore.complete();
       Uint8List? audioFrame;
 
-      var listener = stream.listen((_sample) async {
-        audioFrame = _sample.buffer.asUint8List();
+      final record = AudioRecorder();
+      final stream = await record.startStream(RecordConfig(encoder: AudioEncoder.pcm16bits, sampleRate: widget.sampleRate));
+      stream.listen((event) {
+        audioFrame = event;
       });
 
       while (isRecording) {
@@ -171,7 +169,7 @@ class _RecordingWidgetState extends State<RecordingWidget> {
 
       await readyForMore.future;
 
-      listener.cancel();
+      record.dispose();
       await FlutterQuickVideoEncoder.finish();
       int endTime = DateTime.now().millisecondsSinceEpoch;
       int videoTime = ((endTime - startTime) / 1000).round() - 1;
@@ -210,7 +208,7 @@ class _RecordingWidgetState extends State<RecordingWidget> {
       await FlutterQuickVideoEncoder.appendVideoFrame(videoFrame);
       await FlutterQuickVideoEncoder.appendAudioFrame(audioFrame);
     } else {
-      debugPrint("Error append $videoFrame or $audioFrame");
+      debugPrint("Error append add frame");
     }
   }
 
