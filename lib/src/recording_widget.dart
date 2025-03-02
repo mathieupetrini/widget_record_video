@@ -139,6 +139,7 @@ class _RecordingWidgetState extends State<RecordingWidget> {
       Completer<void> readyForMore = Completer<void>();
       readyForMore.complete();
       Uint8List? audioFrame;
+      List<int> audioFinal = [];
 
       final record = AudioRecorder();
       final stream = await record.startStream(RecordConfig(encoder: AudioEncoder.pcm16bits, sampleRate: widget.sampleRate));
@@ -151,6 +152,9 @@ class _RecordingWidgetState extends State<RecordingWidget> {
 
         if (!isPauseRecord) {
           videoFrame = await captureWidgetAsRGBA();
+          if (audioFrame != null) {
+            audioFinal.add(audioFrame!.last);
+          }
 
           await readyForMore.future;
           readyForMore = Completer<void>();
