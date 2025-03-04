@@ -23,6 +23,7 @@ class RecordingWidget extends StatefulWidget {
     this.sampleRate = 48000,
     this.audioChannels = 1,
     this.audioBitrate = 64000,
+    this.fps = 30,
   });
 
   /// This is the widget you want to record the screen
@@ -42,6 +43,7 @@ class RecordingWidget extends StatefulWidget {
   final int sampleRate;
   final int audioChannels;
   final int audioBitrate;
+  final int fps;
 
   /// [onComplete] is the next action after creating a video, it returns the video path
   final Function(String) onComplete;
@@ -54,7 +56,6 @@ class RecordingWidget extends StatefulWidget {
 }
 
 class _RecordingWidgetState extends State<RecordingWidget> {
-  static const int fps = 30;
   static const int audioChannels = 1;
 
   @override
@@ -88,6 +89,7 @@ class _RecordingWidgetState extends State<RecordingWidget> {
   BuildContext? _context;
 
   int elapsedTime = 0;
+  Uint8List? audioFinal;
 
   void startRecording() {
     setState(() {
@@ -121,6 +123,17 @@ class _RecordingWidgetState extends State<RecordingWidget> {
     isPauseRecord = false;
   }
 
+  recordTest() async {
+    Future.delayed(Duration(milliseconds: 1000 ~/ widget.fps - 1 - (new Random()).nextInt(2)), recordTest);
+    var samplePerFrame = (widget.sampleRate * widget.audioChannels * 2) ~/ widget.fps;
+
+    await _appendFrames(
+        await captureWidgetAsRGBA(),
+        null
+    );
+    frameIndex += 1;
+  }
+
   Future<void> startExportVideo() async {
     Directory? appDir = await getApplicationCacheDirectory();
 
@@ -131,7 +144,7 @@ class _RecordingWidgetState extends State<RecordingWidget> {
       await FlutterQuickVideoEncoder.setup(
         width: width,
         height: height,
-        fps: fps,
+        fps: widget.fps,
         videoBitrate: 1000000,
         profileLevel: ProfileLevel.any,
         audioBitrate: widget.audioBitrate,
@@ -144,27 +157,29 @@ class _RecordingWidgetState extends State<RecordingWidget> {
       readyForMore.complete();
 
       final record = AudioRecorder();
-      final stream = await record.startStream(RecordConfig(bitRate: widget.audioBitrate, encoder: AudioEncoder.pcm16bits, sampleRate: widget.sampleRate, numChannels: widget.audioChannels));
+      final stream = await record.startStream(RecordConfig(
+          bitRate: widget.audioBitrate,
+          encoder: AudioEncoder.pcm16bits,
+          sampleRate: widget.sampleRate,
+          numChannels: widget.audioChannels
+      ));
       stream.listen((event) async {
+        // var b = BytesBuilder();
+        // b.add(event);
+        //
+        // audioFinal = b.toBytes();
         await FlutterQuickVideoEncoder.appendAudioFrame(event);
       });
+      recordTest();
+
+      debugPrint("je suis la 36");
 
       while (isRecording) {
-        Uint8List? videoFrame;
-
         if (!isPauseRecord) {
-          videoFrame = await captureWidgetAsRGBA();
-
           await readyForMore.future;
           readyForMore = Completer<void>();
 
-          try {
-            _appendFrames(videoFrame, null)
-                .then((value) => readyForMore.complete())
-                .catchError((e) => readyForMore.completeError(e));
-          } catch (e) {
-            debugPrint(e.toString());
-          }
+          Future.delayed(Duration(milliseconds: 100), readyForMore.complete);
         } else {
           await Future.delayed(const Duration(milliseconds: 20));
         }
@@ -179,8 +194,6 @@ class _RecordingWidgetState extends State<RecordingWidget> {
       debugPrint("video time: $videoTime");
 
       widget.onComplete(FlutterQuickVideoEncoder.filepath);
-
-      FlutterQuickVideoEncoder.finish();
     } catch (e) {
       ('Error: $e');
     }
@@ -210,7 +223,13 @@ class _RecordingWidgetState extends State<RecordingWidget> {
     if (videoFrame != null) {
       await FlutterQuickVideoEncoder.appendVideoFrame(videoFrame);
     } else {
-      debugPrint("Error append add frame");
+      debugPrint("Error append video frame");
+    }
+
+    if (audioFrame != null) {
+      await FlutterQuickVideoEncoder.appendAudioFrame(audioFrame);
+    } else {
+      debugPrint("Error append audio frame");
     }
   }
 
