@@ -134,10 +134,11 @@ packages:
   flutter_quick_video_encoder:
     dependency: transitive
     description:
-      name: flutter_quick_video_encoder
-      sha256: "7e36d4e0172efec2237478270751b1aff5556c866316feac514b1137ce5f8501"
-      url: "https://pub.dev"
-    source: hosted
+      path: "."
+      ref: HEAD
+      resolved-ref: c329d5427cd61b07b328c62390a86102af226dd2
+      url: "https://github.com/mathieupetrini/flutter_quick_video_encoder.git"
+    source: git
     version: "1.7.2"
   flutter_test:
     dependency: "direct dev"

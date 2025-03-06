@@ -123,9 +123,8 @@ class _RecordingWidgetState extends State<RecordingWidget> {
     isPauseRecord = false;
   }
 
-  recordTest() async {
-    Future.delayed(Duration(milliseconds: 1000 ~/ widget.fps - 1 - (new Random()).nextInt(2)), recordTest);
-    var samplePerFrame = (widget.sampleRate * widget.audioChannels * 2) ~/ widget.fps;
+  recordScreen() async {
+    Future.delayed(Duration(milliseconds: 1000 ~/ widget.fps - 1 - (Random()).nextInt(2)), recordScreen);
 
     await _appendFrames(
         await captureWidgetAsRGBA(),
@@ -164,13 +163,9 @@ class _RecordingWidgetState extends State<RecordingWidget> {
           numChannels: widget.audioChannels
       ));
       stream.listen((event) async {
-        // var b = BytesBuilder();
-        // b.add(event);
-        //
-        // audioFinal = b.toBytes();
         await FlutterQuickVideoEncoder.appendAudioFrame(event);
       });
-      recordTest();
+      recordScreen();
 
       debugPrint("je suis la 36");
 

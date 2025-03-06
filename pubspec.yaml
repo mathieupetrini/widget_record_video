@@ -2,6 +2,7 @@ name: widget_record_video
 description: "A powerful Flutter plugin for recording MP4 video directly from a widget. This plugin leverages FFmpeg and AVFoundation on iOS and MediaCodec on Android, providing high-quality video recording capabilities across platforms"
 version: 0.0.4
 homepage: https://github.com/kullhy/widget_record_video
+publish_to: none
 
 environment:
   sdk: '>=3.3.3 <4.0.0'
@@ -13,7 +14,9 @@ dependencies:
   plugin_platform_interface: ^2.0.2
   path_provider: ^2.1.4
   ffmpeg_kit_flutter_video: ^6.0.3
-  flutter_quick_video_encoder: ^1.7.2
+  flutter_quick_video_encoder:
+    git:
+      url: https://github.com/mathieupetrini/flutter_quick_video_encoder.git
   record: ^5.2.1
 
 
